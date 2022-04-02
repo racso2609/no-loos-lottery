@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { fixture } = deployments;
-// const { printGas, toWei } = require("../utils/transactions");
+const { printGas } = require("../utils/transactions");
 
 describe("Lottery Tickets", () => {
 	beforeEach(async () => {
@@ -21,6 +21,13 @@ describe("Lottery Tickets", () => {
 	describe("mint", () => {
 		it("mint fail not minter", async () => {
 			await expect(ticket.mint(1, 10, user)).to.be.reverted;
+		});
+		it("mint", async () => {
+			const mintTx = await ticket.setMinter(deployer);
+			await mintTx.wait();
+			const tx = await ticket.mint(1, 1, user);
+			await printGas(tx);
+			console.log(tx);
 		});
 	});
 });

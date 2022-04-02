@@ -31,7 +31,8 @@ contract Ticket is ERC1155, AccessControl {
 		uint256 _tokenId,
 		uint256 _amount,
 		address _to
-	) external onlyRole(MINTER) {
+	) external onlyRole(MINTER) returns (bool) {
 		_mint(_to, _tokenId, _amount, "");
+		return true;
 	}
 }
