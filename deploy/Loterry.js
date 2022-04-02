@@ -1,4 +1,5 @@
 const CONTRACT_NAME = "Lottery";
+const { UNISWAP } = require("../utils/tokens");
 
 // modify when needed
 module.exports = async ({ getNamedAccounts, deployments }) => {
@@ -10,7 +11,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	await deploy(CONTRACT_NAME, {
 		from: deployer,
 		log: true,
-		args: [Tickets.address],
+		args: [Tickets.address, UNISWAP],
 	});
 };
 

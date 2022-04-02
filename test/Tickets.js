@@ -17,6 +17,7 @@ describe("Lottery Tickets", () => {
 
 			expect(isAdmin);
 		});
+		it("set admin", async () => {});
 		it("setminter fail not admin", async () => {
 			await expect(ticket.connect(user).setMinter(user)).to.be.reverted;
 		});

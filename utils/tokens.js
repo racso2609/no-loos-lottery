@@ -374,6 +374,7 @@ const tokens = {
 		},
 	],
 };
+const UNISWAP = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"; //mainnet
 
 module.exports = {
 	allowance,
@@ -381,4 +382,5 @@ module.exports = {
 	impersonateTokens,
 	tokens,
 	getToken,
+	UNISWAP,
 };
