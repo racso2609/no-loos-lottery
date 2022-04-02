@@ -105,9 +105,10 @@ describe("Lottery", () => {
 		it("store correct user info", async () => {
 			const tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, 10);
 			await printGas(tx);
-			const buyInfo = await lottery.balanceOf(deployer, 0, 1);
+			const buyInfo = await lottery.balanceOf(0, 0);
 			expect(buyInfo.minNumber).to.be.eq(1);
 			expect(buyInfo.maxNumber).to.be.eq(10);
+			expect(buyInfo.owner).to.be.eq(deployer);
 		});
 	});
 });

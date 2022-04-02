@@ -8,6 +8,7 @@ import "hardhat/console.sol";
 contract Lottery {
 	Ticket public lotteryTickets;
 	uint256 public actualLottery;
+	uint256 public incompleteLottery;
 
 	IUniswapV2Router02 public uniSwapRouter;
 
@@ -19,6 +20,7 @@ contract Lottery {
 	struct ticketsInterval {
 		uint256 minNumber;
 		uint256 maxNumber;
+		address owner;
 	}
 
 	struct Lottery {
@@ -27,8 +29,8 @@ contract Lottery {
 		bool isComplete;
 		address winner;
 		uint256 ticketWinner;
-		mapping(address => mapping(uint256 => ticketsInterval)) ticketsOwner;
-		mapping(address => uint256) buyTimes;
+		mapping(uint32 => ticketsInterval) ticketsOwner;
+		uint32 buyId;
 		uint256 ticketsNumber;
 	}
 
@@ -46,8 +48,10 @@ contract Lottery {
 			(actualLottery == 0 || lotteries[actualLottery - 1].isComplete)
 		) {
 			lotteries[actualLottery].startTime = block.timestamp;
-			//if start time is more than 2 days register on the next lottery
+
+			//if the lasOne lottery end the invesment proccess start the next one
 		} else if (
+			lotteries[actualLottery].startTime > 0 &&
 			lotteries[actualLottery].startTime + VOTING_TIME < block.timestamp
 		) {
 			actualLottery++;
@@ -97,25 +101,32 @@ contract Lottery {
 		}
 
 		lotteryTickets.mint(actualLottery, amountOfTickets, msg.sender);
-		lotteries[actualLottery].buyTimes[msg.sender]++;
-		uint256 actualTimeBuyOfUser = lotteries[actualLottery].buyTimes[msg.sender];
 
-		lotteries[actualLottery]
-		.ticketsOwner[msg.sender][actualTimeBuyOfUser].maxNumber = amountOfTickets;
+		uint256 buyId = lotteries[actualLottery].buyId;
+
+		lotteries[actualLottery].ticketsOwner[buyId].maxNumber = amountOfTickets;
+		lotteries[actualLottery].ticketsOwner[buyId].owner = msg.sender;
 		// set min number to 1 if its the first person on buy
-		lotteries[actualLottery]
-		.ticketsOwner[msg.sender][actualTimeBuyOfUser].minNumber =
+		lotteries[actualLottery].ticketsOwner[buyId].minNumber =
 			lotteries[actualLottery].ticketsNumber +
 			1;
 
 		lotteries[actualLottery].ticketsNumber += amountOfTickets;
+		lotteries[actualLottery].buyId++;
 	}
 
-	function balanceOf(
-		address _to,
-		uint256 _lotteryId,
-		uint256 _timeBuy
-	) external view returns (ticketsInterval memory) {
-		return lotteries[_lotteryId].ticketsOwner[_to][_timeBuy];
+	function claiminWinner() external {
+		uint256 randomNumber = 1;
+		uint32 buyQuantity = lotteries[incompleteLottery];
+
+		for (uint32 i = 0; i < buyQuantity; i++) {}
+	}
+
+	function balanceOf(uint256 _lotteryId, uint256 _buyId)
+		external
+		view
+		returns (ticketsInterval memory)
+	{
+		return lotteries[_lotteryId].ticketsOwner[_buyId];
 	}
 }
