@@ -4,11 +4,13 @@ const CONTRACT_NAME = "Lottery";
 module.exports = async ({ getNamedAccounts, deployments }) => {
 	const { deploy } = deployments;
 	const { deployer } = await getNamedAccounts();
+	const Tickets = await deployments.get("Ticket");
 
 	// Upgradeable Proxy
 	await deploy(CONTRACT_NAME, {
 		from: deployer,
 		log: true,
+		args: [Tickets.address],
 	});
 };
 
