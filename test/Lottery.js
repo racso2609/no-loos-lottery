@@ -38,10 +38,6 @@ describe("Lottery", () => {
 	});
 	describe("star lottery", async () => {
 		beforeEach(async () => {
-			const fundTx = await lottery.sendFunds({
-				value: ethers.utils.parseEther("5"),
-			});
-			await fundTx.wait();
 			impersonateDAI = "0x5d38b4e4783e34e2301a2a36c39a03c45798c4dd";
 
 			await impersonateTokens({

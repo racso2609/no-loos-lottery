@@ -118,6 +118,4 @@ contract Lottery {
 	) external view returns (ticketsInterval memory) {
 		return lotteries[_lotteryId].ticketsOwner[_to][_timeBuy];
 	}
-
-	function sendFunds() external payable {}
 }
