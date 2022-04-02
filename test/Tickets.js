@@ -17,7 +17,13 @@ describe("Lottery Tickets", () => {
 
 			expect(isAdmin);
 		});
-		it("set admin", async () => {});
+		it("set admin", async () => {
+			const adminRole = await ticket.DEFAULT_ADMIN_ROLE();
+			const tx = await ticket.setAdmin(user);
+			printGas(tx);
+			const isAdmin = await ticket.hasRole(adminRole, user);
+			expect(isAdmin);
+		});
 		it("setminter fail not admin", async () => {
 			await expect(ticket.connect(user).setMinter(user)).to.be.reverted;
 		});
