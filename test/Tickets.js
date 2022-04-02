@@ -17,6 +17,17 @@ describe("Lottery Tickets", () => {
 
 			expect(isAdmin);
 		});
+		it("setminter fail not admin", async () => {
+			await expect(ticket.connect(user).setMinter(user)).to.be.reverted;
+		});
+
+		it("setminter", async () => {
+			const tx = await ticket.setMinter(user);
+			await printGas(await tx);
+			const minterRole = await ticket.MINTER();
+			const isMinter = await ticket.hasRole(minterRole, user);
+			expect(isMinter);
+		});
 	});
 	describe("mint", () => {
 		it("mint fail not minter", async () => {
@@ -27,7 +38,8 @@ describe("Lottery Tickets", () => {
 			await mintTx.wait();
 			const tx = await ticket.mint(1, 1, user);
 			await printGas(tx);
-			console.log(tx);
+			const balance = await ticket.balanceOf(user, 1);
+			expect(balance).to.be.eq(1);
 		});
 	});
 });
