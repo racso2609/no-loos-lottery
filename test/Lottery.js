@@ -18,9 +18,11 @@ describe("Lottery", () => {
 		lottery = await ethers.getContract("Lottery");
 		tickets = await ethers.getContract("Ticket");
 		random = await ethers.getContract("GenerateRandom");
+
 		DAI_TOKEN = getToken("DAI");
 		USDC_TOKEN = getToken("USDC");
 		LINK_TOKEN = getToken("LINK");
+
 		const setMinterTx = await tickets.setMinter(lottery.address);
 		await setMinterTx.wait();
 

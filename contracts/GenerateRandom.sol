@@ -11,6 +11,7 @@ contract GenerateRandom is VRFConsumerBase {
 	bytes32 internal keyHash;
 	uint256 internal fee;
 	uint256 public randomNumber;
+	bytes32 requestId;
 
 	constructor(
 		address _vrfCoordinator,
@@ -27,10 +28,11 @@ contract GenerateRandom is VRFConsumerBase {
 			LINK.balanceOf(address(this)) >= fee,
 			"Inadequate Link to fund this transaction"
 		);
-		return requestRandomness(keyHash, fee);
+		requestId = requestRandomness(keyHash, fee);
+		return requestId;
 	}
 
-	function fulfillRandomness(bytes32 requesId, uint256 randomness)
+	function fulfillRandomness(bytes32 _requesId, uint256 randomness)
 		internal
 		override
 	{
