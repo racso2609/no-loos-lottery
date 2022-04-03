@@ -6,14 +6,15 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	const { deploy } = deployments;
 	const { deployer } = await getNamedAccounts();
 	const Tickets = await deployments.get("Ticket");
+	const Random = await deployments.get("GenerateRandom");
 
 	// Upgradeable Proxy
 	await deploy(CONTRACT_NAME, {
 		from: deployer,
 		log: true,
-		args: [Tickets.address, UNISWAP],
+		args: [Tickets.address, UNISWAP, Random.address],
 	});
 };
 
 module.exports.tags = [CONTRACT_NAME, "lottery"];
-module.exports.dependencies = ["Ticket"];
+module.exports.dependencies = ["Ticket", "GenerateRandom"];

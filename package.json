@@ -23,6 +23,7 @@
     "solidity-coverage": "^0.7.19"
   },
   "dependencies": {
+    "@chainlink/contracts": "^0.4.0",
     "@uniswap/v2-periphery": "^1.1.0-beta.0",
     "eslint": "^8.12.0",
     "eslint-config-prettier": "^8.5.0",

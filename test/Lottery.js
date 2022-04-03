@@ -7,6 +7,7 @@ const {
 	allowance,
 	balanceOf,
 	UNISWAP,
+	transfer,
 } = require("../utils/tokens");
 
 describe("Lottery", () => {
@@ -16,13 +17,16 @@ describe("Lottery", () => {
 		await fixture(["lottery"]);
 		lottery = await ethers.getContract("Lottery");
 		tickets = await ethers.getContract("Ticket");
+		random = await ethers.getContract("GenerateRandom");
 		DAI_TOKEN = getToken("DAI");
 		USDC_TOKEN = getToken("USDC");
+		LINK_TOKEN = getToken("LINK");
 		const setMinterTx = await tickets.setMinter(lottery.address);
 		await setMinterTx.wait();
 
 		impersonateDAI = "0x5d38b4e4783e34e2301a2a36c39a03c45798c4dd";
 		impersonateUSDC = "0x61f2f664fec20a2fc1d55409cfc85e1baeb943e2";
+		impersonateLINK = "0x0d4f1ff895d12c34994d6b65fabbeefdc1a9fb39";
 	});
 	describe("basic config", () => {
 		it("correct ticket address", async () => {
@@ -136,7 +140,22 @@ describe("Lottery", () => {
 				fundAddress: deployer,
 				amount: "20",
 			});
+
+			await impersonateTokens({
+				tokenAddress: LINK_TOKEN.address,
+				amount: ethers.utils.parseEther("2"),
+				impersonateAddress: impersonateLINK,
+				fundAddress: deployer,
+			});
+
+			await transfer({
+				tokenAddress: LINK_TOKEN.address,
+				contractAddress: random.address,
+				fundAddress: deployer,
+				amount: ethers.utils.parseEther("2"),
+			});
 		});
+
 		it("fail lottery not finished", async () => {
 			const tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, 10);
 			await printGas(tx);

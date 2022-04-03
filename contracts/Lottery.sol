@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./GenerateRandom.sol";
 import "hardhat/console.sol";
 
 contract Lottery is AccessControl {
@@ -13,11 +14,13 @@ contract Lottery is AccessControl {
 	uint256 public incompleteLottery;
 
 	IUniswapV2Router02 public uniSwapRouter;
+	IGenerateRandom randomGenerator;
 
 	uint256 constant VOTING_TIME = 2 days;
 	uint256 constant INVERSION_TIME = 5 days;
 	address constant DAI_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 	uint16 constant DEADLINE = 2 minutes;
+
 	uint256 price;
 
 	struct ticketsInterval {
@@ -36,16 +39,21 @@ contract Lottery is AccessControl {
 		uint32 buyId;
 		uint256 ticketsNumber;
 		uint256 inversionProfit;
-		mapping(owner => uint256) balance;
+		mapping(address => uint256) balance;
 	}
 
 	mapping(uint256 => Lottery) public lotteries;
 
-	constructor(Ticket _lotteryTickets, IUniswapV2Router02 _uniSwapRouter) {
+	constructor(
+		Ticket _lotteryTickets,
+		IUniswapV2Router02 _uniSwapRouter,
+		IGenerateRandom _randomNumber
+	) {
 		lotteryTickets = _lotteryTickets;
 		uniSwapRouter = _uniSwapRouter;
 		price = 1;
 		_grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+		randomGenerator = _randomNumber;
 	}
 
 	function setPrice(uint256 _price) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -147,7 +155,15 @@ contract Lottery is AccessControl {
 			revert("No one buy tickets to this lottery restarting lottery!");
 		}
 
-		uint256 randomNumber = 1;
+		console.log("generating");
+		randomGenerator.getRandomness();
+
+		console.log("generated");
+		uint256 randomNumber = randomGenerator.rollDice(
+			lotteries[incompleteLottery].ticketsNumber
+		);
+		console.log(randomNumber);
+
 		uint32 buyQuantity = lotteries[incompleteLottery].buyId;
 		address winner;
 		for (uint32 i = 0; i < buyQuantity; i++) {

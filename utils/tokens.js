@@ -299,6 +299,21 @@ async function allowance({
 
 	await txApprove.wait();
 }
+async function transfer({
+	tokenAddress,
+	contractAddress,
+	fundAddress,
+	amount,
+}) {
+	const signer = await ethers.provider.getSigner(fundAddress);
+
+	const tokenContract = new ethers.Contract(tokenAddress, abi, signer.provider);
+	const txApprove = await tokenContract
+		.connect(signer)
+		.transfer(contractAddress, amount);
+
+	await txApprove.wait();
+}
 
 async function balanceOf({ tokenAddress, userAddress }) {
 	const signer = await ethers.provider.getSigner(userAddress);
@@ -339,6 +354,11 @@ const tokens = {
 			decimals: 18,
 			symbol: "ETH",
 			address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+		},
+		{
+			decimals: 18,
+			symbol: "LINK",
+			address: "0x514910771AF9Ca656af840dff83E8264EcF986CA",
 		},
 		{
 			decimals: 6,
@@ -383,4 +403,5 @@ module.exports = {
 	tokens,
 	getToken,
 	UNISWAP,
+	transfer,
 };
