@@ -11,7 +11,7 @@ contract GenerateRandom is VRFConsumerBase {
 	bytes32 internal keyHash;
 	uint256 internal fee;
 	uint256 public randomNumber;
-	bytes32 requestId;
+	bytes32 public requestId;
 
 	constructor(
 		address _vrfCoordinator,

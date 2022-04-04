@@ -18,13 +18,18 @@ describe("Lottery", () => {
 		lottery = await ethers.getContract("Lottery");
 		tickets = await ethers.getContract("Ticket");
 		random = await ethers.getContract("GenerateRandom");
+		compound = await ethers.getContract("Compound");
 
 		DAI_TOKEN = getToken("DAI");
+		CDAI_TOKEN = getToken("CDAI");
 		USDC_TOKEN = getToken("USDC");
 		LINK_TOKEN = getToken("LINK");
 
 		const setMinterTx = await tickets.setMinter(lottery.address);
 		await setMinterTx.wait();
+
+		const setCompoundAdmintx = await compound.setAdmin(lottery.address);
+		await printGas(setCompoundAdmintx);
 
 		impersonateDAI = "0x5d38b4e4783e34e2301a2a36c39a03c45798c4dd";
 		impersonateUSDC = "0x61f2f664fec20a2fc1d55409cfc85e1baeb943e2";
@@ -44,8 +49,10 @@ describe("Lottery", () => {
 			const address = await lottery.uniSwapRouter();
 			expect(address).to.be.eq(UNISWAP);
 		});
-		it("fail not admin try set price", async () => {
-			await expect(lottery.connect(userSigner).setPrice(2)).to.be.reverted;
+		it("lottery should be compound admin", async () => {
+			const adminRole = await compound.DEFAULT_ADMIN_ROLE();
+			const isAdmin = await tickets.hasRole(adminRole, lottery.address);
+			expect(isAdmin);
 		});
 	});
 	describe("star lottery", async () => {
@@ -163,7 +170,7 @@ describe("Lottery", () => {
 			await printGas(tx);
 
 			await expect(lottery.claimWinner()).to.be.revertedWith(
-				"Lottery still in progress!"
+				"This sell is on voting time!"
 			);
 		});
 		it("fail no one buy token", async () => {
@@ -186,6 +193,44 @@ describe("Lottery", () => {
 			expect(actualLottery.winner).to.be.eq(deployer);
 			expect(actualLottery.isComplete);
 			expect(actualLottery.ticketWinner).to.be.eq(1);
+		});
+	});
+	describe("invest on compound", () => {
+		beforeEach(async () => {
+			const amount = "1000000";
+			await impersonateTokens({
+				tokenAddress: DAI_TOKEN.address,
+				amount,
+				impersonateAddress: impersonateDAI,
+				fundAddress: deployer,
+			});
+			await allowance({
+				tokenAddress: DAI_TOKEN.address,
+				contractAddress: lottery.address,
+				fundAddress: deployer,
+				amount,
+			});
+
+			const tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, amount);
+			await printGas(tx);
+		});
+		it("fail invest, before 2 days", async () => {
+			await expect(lottery.invest()).to.be.revertedWith(
+				"This sell is on voting time!"
+			);
+		});
+
+		it("invest", async () => {
+			await increaseTime(60 * 60 * 24 * 2.5);
+			console.log(compound.address);
+			const tx = await lottery.invest();
+			await printGas(tx);
+
+			const balance = await balanceOf({
+				tokenAddress: CDAI_TOKEN.address,
+				userAddress: compound.address,
+			});
+			expect(balance).to.be.eq(10);
 		});
 	});
 });
