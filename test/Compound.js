@@ -5,7 +5,12 @@ const {
 	increaseBlocks,
 	increaseTime,
 } = require("../utils/transactions");
-const { getToken, impersonateTokens, allowance } = require("../utils/tokens");
+const {
+	getToken,
+	impersonateTokens,
+	allowance,
+	balanceOf,
+} = require("../utils/tokens");
 
 describe("Compound test", () => {
 	beforeEach(async () => {
@@ -61,8 +66,36 @@ describe("Compound test", () => {
 		});
 
 		it("supply and redeem", async () => {
+			console.log(
+				"before",
+				await balanceOf({
+					tokenAddress: DAI_TOKEN.address,
+					userAddress: deployer,
+				})
+			);
+			console.log(
+				"before cDai",
+				await balanceOf({
+					tokenAddress: CDAI_TOKEN.address,
+					userAddress: deployer,
+				})
+			);
 			let tx = await compound.supply(supplyAmount);
 			await printGas(tx);
+			console.log(
+				"after",
+				await balanceOf({
+					tokenAddress: DAI_TOKEN.address,
+					userAddress: deployer,
+				})
+			);
+			console.log(
+				"after cdai",
+				await balanceOf({
+					tokenAddress: CDAI_TOKEN.address,
+					userAddress: compound.address,
+				})
+			);
 
 			const preCTokenBalance = await compound.getCTokenBalance();
 			console.log(preCTokenBalance.toString()); //return 0 -_- whyyyy

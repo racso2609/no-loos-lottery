@@ -86,6 +86,6 @@ contract Compound is AccessControl {
 	}
 
 	function redeem(uint256 _cTokenAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-		require(cToken.redeem(10) == 0, "redeem fail");
+		require(cToken.redeem(_cTokenAmount) == 0, "redeem fail");
 	}
 }

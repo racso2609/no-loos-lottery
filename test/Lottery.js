@@ -122,6 +122,11 @@ describe("Lottery", () => {
 			expect(buyInfo.maxNumber).to.be.eq(10);
 			expect(buyInfo.owner).to.be.eq(deployer);
 		});
+		it("buy ticket event", async () => {
+			await expect(lottery.buyTicketWithToken(DAI_TOKEN.address, 10))
+				.to.emit(lottery, "BuyTicket")
+				.withArgs(deployer, 10);
+		});
 	});
 	describe("claim winner", () => {
 		beforeEach(async () => {
@@ -133,19 +138,6 @@ describe("Lottery", () => {
 			});
 			await allowance({
 				tokenAddress: DAI_TOKEN.address,
-				contractAddress: lottery.address,
-				fundAddress: deployer,
-				amount: "20",
-			});
-			await impersonateTokens({
-				tokenAddress: USDC_TOKEN.address,
-				amount: "1000000",
-				impersonateAddress: impersonateUSDC,
-				fundAddress: deployer,
-			});
-
-			await allowance({
-				tokenAddress: USDC_TOKEN.address,
 				contractAddress: lottery.address,
 				fundAddress: deployer,
 				amount: "20",
@@ -175,10 +167,11 @@ describe("Lottery", () => {
 			);
 		});
 		it("fail no one buy token", async () => {
-			await expect(lottery.claimWinner()).to.be.revertedWith(
+			await expect(lottery.invest()).to.be.revertedWith(
 				"No one buy tickets to this lottery restarting lottery!"
 			);
 		});
+
 		it("set winner", async () => {
 			let tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, 10);
 			await printGas(tx);
@@ -192,8 +185,6 @@ describe("Lottery", () => {
 			tx = await lottery.getRandomNumber();
 			await printGas(tx);
 
-			await increaseTime(60 * 60 * 24);
-
 			tx = await lottery.claimWinner();
 			await printGas(tx);
 
@@ -201,6 +192,23 @@ describe("Lottery", () => {
 			expect(actualLottery.winner).to.be.eq(deployer);
 			expect(actualLottery.isComplete);
 			expect(actualLottery.ticketWinner).to.be.eq(1);
+		});
+		it(" claim winner event", async () => {
+			let tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, 10);
+			await printGas(tx);
+
+			await increaseTime(60 * 60 * 24 * 2.3);
+			tx = await lottery.invest();
+			await printGas(tx);
+
+			await increaseTime(60 * 60 * 24 * 5);
+
+			tx = await lottery.getRandomNumber();
+			await printGas(tx);
+
+			await expect(await lottery.claimWinner())
+				.to.emit(lottery, "ClaimWinner")
+				.withArgs(deployer);
 		});
 	});
 	describe("invest on compound", () => {
@@ -229,20 +237,113 @@ describe("Lottery", () => {
 		});
 
 		it("invest", async () => {
-			await increaseTime(60 * 60 * 24 * 2.5);
+			await increaseTime(60 * 60 * 24 * 2);
 			const tx = await lottery.invest();
 			await printGas(tx);
 
-			const balance = await balanceOf({
+			const cBalance = await balanceOf({
 				tokenAddress: CDAI_TOKEN.address,
 				userAddress: compound.address,
 			});
+			const balance = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: compound.address,
+			});
+			const cDeployerBalance = await balanceOf({
+				tokenAddress: CDAI_TOKEN.address,
+				userAddress: deployer,
+			});
+			const deployerBalance = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: deployer,
+			});
+			const cLotteryBalance = await balanceOf({
+				tokenAddress: CDAI_TOKEN.address,
+				userAddress: lottery.address,
+			});
+			const lotteryBalance = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: lottery.address,
+			});
+
+			console.log(
+				cBalance,
+				balance,
+				deployerBalance,
+				cDeployerBalance,
+				lotteryBalance,
+				cLotteryBalance
+			);
 			expect(balance).to.be.eq(10);
 		});
 	});
 	describe("claim reward", () => {
-		beforeEach(async () => {});
+		beforeEach(async () => {
+			const amount = "1000000";
+			await impersonateTokens({
+				tokenAddress: DAI_TOKEN.address,
+				amount,
+				impersonateAddress: impersonateDAI,
+				fundAddress: deployer,
+			});
+			await allowance({
+				tokenAddress: DAI_TOKEN.address,
+				contractAddress: lottery.address,
+				fundAddress: deployer,
+				amount,
+			});
+
+			await impersonateTokens({
+				tokenAddress: LINK_TOKEN.address,
+				amount: ethers.utils.parseEther("1000"),
+				impersonateAddress: impersonateLINK,
+				fundAddress: deployer,
+			});
+
+			await transfer({
+				tokenAddress: LINK_TOKEN.address,
+				contractAddress: random.address,
+				fundAddress: deployer,
+				amount: ethers.utils.parseEther("1000"),
+			});
+
+			let tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, 10);
+			await printGas(tx);
+
+			await increaseTime(60 * 60 * 24 * 2.3);
+			tx = await lottery.invest();
+			await printGas(tx);
+
+			await increaseTime(60 * 60 * 24 * 5);
+
+			tx = await lottery.getRandomNumber();
+			await printGas(tx);
+
+			tx = await lottery.claimWinner();
+			await printGas(tx);
+		});
+
+		it("claim reward winner", async () => {
+			await increaseTime(60 * 60 * 24 * 7);
+
+			console.log(await lottery.lotteries(0));
+
+			let tx = await lottery.reclameReward(0);
+			await printGas(tx);
+
+			const daiBalance = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: deployer,
+			});
+			expect(daiBalance).to.be.gt(0);
+		});
+
 		it("fail already claimed", () => {});
-		it("claim", () => {});
+		it("claim reward event", async () => {
+			await increaseTime(60 * 60 * 24 * 7);
+			await expect(lottery.reclameReward(0))
+				.to.emit(lottery, "ClaimReward")
+				.withArgs(deployer, 1000, true);
+		});
 	});
 });

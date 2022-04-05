@@ -21,7 +21,7 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 	IGenerateRandom randomGenerator;
 	Compound compound;
 
-	event ClaimPrize(address owner, uint256 prize, bool isWinner);
+	event ClaimReward(address owner, uint256 prize, bool isWinner);
 	event ClaimWinner(address winner);
 	event BuyTicket(address owner, uint256 ticketAmount);
 
@@ -62,7 +62,7 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 
 	modifier endBuyTime(uint256 _lotteryId) {
 		require(
-			lotteries[_lotteryId].startTime + BUY_TIME < block.timestamp,
+			block.timestamp >= lotteries[_lotteryId].startTime + BUY_TIME,
 			"This sell is on voting time!"
 		);
 		_;
@@ -72,9 +72,9 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 
 	modifier endInvestementTime(uint256 _lotteryId) {
 		require(
-			lotteries[_lotteryId].startTime + BUY_TIME + INVERSION_TIME <
-				block.timestamp,
-			"This sell is on voting time!"
+			block.timestamp >=
+				lotteries[_lotteryId].startTime + BUY_TIME + INVERSION_TIME,
+			"This sell is on investment time!"
 		);
 		_;
 	}
@@ -82,8 +82,7 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 	/* @notice check if lottery is already completed  */
 
 	modifier isFinishedLottery(uint256 _lotteryId) {
-		require(lotteries[_lotteryId].isComplete);
-
+		require(lotteries[_lotteryId].isComplete, "lottery is not completed!");
 		_;
 	}
 
@@ -215,16 +214,9 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 		endInvestementTime(incompleteLottery)
 		onlyRole(DEFAULT_ADMIN_ROLE)
 	{
-		if (lotteries[incompleteLottery].buyId == 0) {
-			lotteries[incompleteLottery].startTime = block.timestamp;
-			revert("No one buy tickets to this lottery restarting lottery!");
-		}
 		uint256 randomNumber = randomGenerator.rollDice(
 			lotteries[incompleteLottery].ticketsNumber
 		);
-
-		/* uint256 randomNumber = 1; */
-		console.log(randomNumber);
 
 		uint32 buyQuantity = lotteries[incompleteLottery].buyId;
 		address winner;
@@ -241,8 +233,10 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 		}
 		require(winner != address(0x0), "winner not found!");
 		lotteries[incompleteLottery].winner = winner;
-		uint256 amountToWithdraw = compound.balanceOfUnderlying();
+
+		uint256 amountToWithdraw = compound.getCTokenBalance();
 		compound.redeem(amountToWithdraw);
+
 		lotteries[incompleteLottery].isComplete = true;
 		lotteries[incompleteLottery].ticketWinner = randomNumber;
 
@@ -269,6 +263,10 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 			!lotteries[incompleteLottery].isComplete,
 			"this lottery is already completed!"
 		);
+		if (lotteries[incompleteLottery].buyId == 0) {
+			lotteries[incompleteLottery].startTime = block.timestamp;
+			revert("No one buy tickets to this lottery restarting lottery!");
+		}
 
 		uint256 investedBalance = calculatePrice(
 			lotteries[incompleteLottery].ticketsNumber
@@ -281,8 +279,8 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 	}
 
 	/* @params _lotteryId lottery identifier */
-	/* @notice reclame you reward */
-	function reclameYouPrime(uint256 _lotteryId)
+	/* @notice reclame your reward */
+	function reclameReward(uint256 _lotteryId)
 		external
 		endBuyTime(incompleteLottery)
 		endInvestementTime(incompleteLottery)
@@ -305,13 +303,13 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 			uint256 DaiContractBalance = IERC20(DAI_ADDRESS).balanceOf(address(this));
 			prize = DaiContractBalance.sub(prize);
 		} else {
-			prize = calculatePrice(userTickets);
+			prize = userTickets;
 		}
 
 		IERC20(DAI_ADDRESS).transfer(msg.sender, prize);
 		lotteries[_lotteryId].isClaimed[msg.sender] = true;
-		lotteries[_lotteryId].claimedTickets += userTickets;
-		emit ClaimPrize(msg.sender, prize, isWinner);
+		lotteries[_lotteryId].claimedTickets += calculatePrice(userTickets);
+		emit ClaimReward(msg.sender, prize, isWinner);
 	}
 
 	/* @params _lotteryId lottery identifier */
