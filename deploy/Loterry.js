@@ -13,7 +13,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 	await deploy(CONTRACT_NAME, {
 		from: deployer,
 		log: true,
-		args: [Tickets.address, UNISWAP, Random.address, Compound.address],
+		proxy: {
+			execute: {
+				init: {
+					methodName: "initialize",
+					args: [Tickets.address, UNISWAP, Random.address, Compound.address],
+				},
+			},
+		},
 	});
 };
 

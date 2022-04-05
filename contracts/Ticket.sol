@@ -19,13 +19,24 @@ contract Ticket is ERC1155, AccessControl {
 		return super.supportsInterface(interfaceId);
 	}
 
+	/* @params _to person to grant minter role  */
+	/* @notice admin user can set minter privileges to another users */
+
 	function setMinter(address _to) external onlyRole(DEFAULT_ADMIN_ROLE) {
 		_grantRole(MINTER, _to);
 	}
 
+	/* @params _to person to grant admin role  */
+	/* @notice admin user can set admin privileges to another users */
+
 	function setAdmin(address _to) external onlyRole(DEFAULT_ADMIN_ROLE) {
 		_grantRole(DEFAULT_ADMIN_ROLE, _to);
 	}
+
+	/* @params _tokenId  token identifier (use _lotteryId)  */
+	/* @params _amount  amount of tickets to mint  */
+	/* @params _to  person who recieve tokens  */
+	/* @notice minter users can use lotteryId to create a new collection of tickets and send it to  _to user */
 
 	function mint(
 		uint256 _tokenId,

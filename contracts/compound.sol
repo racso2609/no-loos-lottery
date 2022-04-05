@@ -27,15 +27,23 @@ contract Compound is AccessControl {
 		_grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 	}
 
+	/* @params _to person to grant admin role  */
+	/* @notice admin user can set admin privileges to another users */
+
 	function setAdmin(address _to) external onlyRole(DEFAULT_ADMIN_ROLE) {
 		_grantRole(DEFAULT_ADMIN_ROLE, _to);
 	}
+
+	/* @params _amount amount of tokens to supplt compound  */
+	/* @notice supply compound with tokens */
 
 	function supply(uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
 		token.transferFrom(msg.sender, address(this), _amount);
 		token.approve(address(cToken), _amount);
 		require(cToken.mint(_amount) == 0, "mint fail!");
 	}
+
+	/* @notice get cToken amount */
 
 	function getCTokenBalance()
 		public
@@ -46,6 +54,7 @@ contract Compound is AccessControl {
 		return cToken.balanceOf(address(this));
 	}
 
+	/* @notice info related to the pool */
 	function getInfo()
 		external
 		onlyRole(DEFAULT_ADMIN_ROLE)
@@ -55,6 +64,7 @@ contract Compound is AccessControl {
 		supplyRate = cToken.supplyRatePerBlock();
 	}
 
+	/* @notice info related to the pool */
 	function estimateBalanceOfUnderlying()
 		external
 		onlyRole(DEFAULT_ADMIN_ROLE)
@@ -76,6 +86,6 @@ contract Compound is AccessControl {
 	}
 
 	function redeem(uint256 _cTokenAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-		require(cToken.redeem(_cTokenAmount) == 0, "redeem fail");
+		require(cToken.redeem(10) == 0, "redeem fail");
 	}
 }

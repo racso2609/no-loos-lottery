@@ -64,19 +64,19 @@ describe("Compound test", () => {
 			let tx = await compound.supply(supplyAmount);
 			await printGas(tx);
 
-			const preCTokenBalance = await compound.estimateBalanceOfUnderlying();
+			const preCTokenBalance = await compound.getCTokenBalance();
 			console.log(preCTokenBalance.toString()); //return 0 -_- whyyyy
 
-			expect(preCTokenBalance).to.be.eq(supplyAmount);
 			await increaseBlocks(100);
-			const postCTokenBalance = await compound.balanceOfUnderlying();
+			const postCTokenBalance = await compound.getCTokenBalance();
 			console.log(postCTokenBalance.toString());
-
-			expect(postCTokenBalance).to.be.gt(preCTokenBalance);
 
 			tx = await compound.redeem(supplyAmount);
 			printGas(tx);
-			const balancePostRedeem = await compound.balanceOfUnderlying();
+			const balancePostRedeem = await compound.getCTokenBalance();
+
+			expect(preCTokenBalance).to.be.eq(supplyAmount);
+			expect(postCTokenBalance).to.be.gt(preCTokenBalance);
 			expect(postCTokenBalance.sub(supplyAmount)).to.be.eq(balancePostRedeem);
 		});
 	});

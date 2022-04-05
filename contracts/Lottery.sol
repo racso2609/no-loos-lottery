@@ -5,12 +5,13 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./compound.sol";
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./GenerateRandom.sol";
 import "hardhat/console.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract Lottery is AccessControl {
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+
+contract Lottery is Initializable, AccessControlUpgradeable {
 	using SafeMath for uint256;
 	Ticket public lotteryTickets;
 	uint256 public actualLottery;
@@ -24,7 +25,7 @@ contract Lottery is AccessControl {
 	event ClaimWinner(address winner);
 	event BuyTicket(address owner, uint256 ticketAmount);
 
-	uint256 constant VOTING_TIME = 2 days;
+	uint256 constant BUY_TIME = 2 days;
 	uint256 constant INVERSION_TIME = 5 days;
 	address constant DAI_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 	uint16 constant DEADLINE = 2 minutes;
@@ -43,63 +44,56 @@ contract Lottery is AccessControl {
 		bool isComplete;
 		address winner;
 		uint256 ticketWinner;
-		mapping(uint32 => ticketsInterval) ticketsOwner;
 		uint32 buyId;
 		uint256 ticketsNumber;
 		uint256 claimedTickets;
+		// to allow iterate and buy tickets more than one tiket by people
+		// i use a uint to track each ticket interval
+		mapping(uint32 => ticketsInterval) ticketsOwner;
+		// amount od tickets buy by the user
 		mapping(address => uint256) balance;
+		// check if user claim their reward
 		mapping(address => bool) isClaimed;
 	}
 
 	mapping(uint256 => Lottery) public lotteries;
+	/* @params _lotteryId lottery identifier  */
+	/* @notice check if buy time is already completed  */
+
 	modifier endBuyTime(uint256 _lotteryId) {
 		require(
-			lotteries[_lotteryId].startTime + VOTING_TIME < block.timestamp,
+			lotteries[_lotteryId].startTime + BUY_TIME < block.timestamp,
 			"This sell is on voting time!"
 		);
 		_;
 	}
+	/* @params _lotteryId lottery identifier  */
+	/* @notice check if investment time is already completed  */
+
 	modifier endInvestementTime(uint256 _lotteryId) {
 		require(
-			lotteries[_lotteryId].startTime + VOTING_TIME + INVERSION_TIME <
+			lotteries[_lotteryId].startTime + BUY_TIME + INVERSION_TIME <
 				block.timestamp,
 			"This sell is on voting time!"
 		);
 		_;
 	}
+	/* @params _lotteryId lottery identifier  */
+	/* @notice check if lottery is already completed  */
+
 	modifier isFinishedLottery(uint256 _lotteryId) {
 		require(lotteries[_lotteryId].isComplete);
 
 		_;
 	}
 
-	constructor(
-		Ticket _lotteryTickets,
-		IUniswapV2Router02 _uniSwapRouter,
-		IGenerateRandom _randomNumber,
-		Compound _compound
-	) {
-		lotteryTickets = _lotteryTickets;
-		uniSwapRouter = _uniSwapRouter;
-		_grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-		randomGenerator = _randomNumber;
-		compound = _compound;
-	}
-
-	function _calculateTokens(uint256 _amountOfDai)
-		internal
-		view
-		returns (uint256)
-	{
-		return _amountOfDai / PRICE;
-	}
-
+	/* @notice middleware to check if the buyTime of one lottery is finished and register de buyer on the next lottery  */
 	modifier manageLotteryInfo() {
 		if (actualLottery == 0 && lotteries[actualLottery].startTime == 0) {
 			lotteries[actualLottery].startTime = block.timestamp;
 		} else if (
 			lotteries[actualLottery].startTime > 0 &&
-			lotteries[actualLottery].startTime + VOTING_TIME < block.timestamp
+			lotteries[actualLottery].startTime + BUY_TIME < block.timestamp
 		) {
 			actualLottery++;
 			lotteries[actualLottery].lotteryId = actualLottery;
@@ -108,6 +102,35 @@ contract Lottery is AccessControl {
 		_;
 	}
 
+	function initialize(
+		Ticket _lotteryTickets,
+		IUniswapV2Router02 _uniSwapRouter,
+		IGenerateRandom _randomNumber,
+		Compound _compound
+	) external initializer {
+		__AccessControl_init();
+		lotteryTickets = _lotteryTickets;
+		uniSwapRouter = _uniSwapRouter;
+		randomGenerator = _randomNumber;
+		compound = _compound;
+
+		_grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+	}
+
+	/* @params _daiAmount dai received from the user  */
+	/* @notice return the amount of tokens related to _amountDai  */
+
+	function _calculateTokens(uint256 _daiAmount)
+		internal
+		view
+		returns (uint256)
+	{
+		return _daiAmount / PRICE;
+	}
+
+	/* @params _tokens uniswap path  */
+	/* @params _amount amount of tokens in  */
+	/* @notice return the tokensOutamount obtained by swap  */
 	function _getAmountsOut(address[] memory _tokens, uint256 _amount)
 		internal
 		view
@@ -116,19 +139,32 @@ contract Lottery is AccessControl {
 		return uniSwapRouter.getAmountsOut(_amount, _tokens)[1];
 	}
 
+	/* @params _amount min tokens out amount  */
+	/* @params _path uniswap path  */
+	/* @params _tokensamount quinity of tokens in  */
+	/* @notice make swap of tokens   */
+
 	function _swap(
 		uint256 _amount,
-		address[] memory path,
-		uint256 tokensAmount
+		address[] memory _path,
+		uint256 _tokensAmount
 	) internal {
 		uniSwapRouter.swapExactTokensForTokens(
 			_amount,
-			tokensAmount,
-			path,
+			_tokensAmount,
+			_path,
 			address(this),
 			block.timestamp + DEADLINE
 		);
 	}
+
+	function getRandomNumber() external {
+		randomGenerator.getRandomness();
+	}
+
+	/* @params _token tokenIn  */
+	/* @params _amount quantity of tokens sent  */
+	/* @notice buy tickets, and swap the tokenIn for dai   */
 
 	function buyTicketWithToken(IERC20 _token, uint256 _amount)
 		external
@@ -171,6 +207,8 @@ contract Lottery is AccessControl {
 		emit BuyTicket(msg.sender, amountOfTickets);
 	}
 
+	/* @notice claim winner from a complete loterry  */
+
 	function claimWinner()
 		external
 		endBuyTime(incompleteLottery)
@@ -181,16 +219,12 @@ contract Lottery is AccessControl {
 			lotteries[incompleteLottery].startTime = block.timestamp;
 			revert("No one buy tickets to this lottery restarting lottery!");
 		}
+		uint256 randomNumber = randomGenerator.rollDice(
+			lotteries[incompleteLottery].ticketsNumber
+		);
 
-		uint256 randomNumber = 1;
-		/* console.log("generating"); */
-		/* randomGenerator.getRandomness(); */
-
-		/* console.log("generated"); */
-		/* uint256 randomNumber = randomGenerator.rollDice( */
-		/* lotteries[incompleteLottery].ticketsNumber */
-		/* ); */
-		/* console.log(randomNumber); */
+		/* uint256 randomNumber = 1; */
+		console.log(randomNumber);
 
 		uint32 buyQuantity = lotteries[incompleteLottery].buyId;
 		address winner;
@@ -207,6 +241,8 @@ contract Lottery is AccessControl {
 		}
 		require(winner != address(0x0), "winner not found!");
 		lotteries[incompleteLottery].winner = winner;
+		uint256 amountToWithdraw = compound.balanceOfUnderlying();
+		compound.redeem(amountToWithdraw);
 		lotteries[incompleteLottery].isComplete = true;
 		lotteries[incompleteLottery].ticketWinner = randomNumber;
 
@@ -216,10 +252,13 @@ contract Lottery is AccessControl {
 		emit ClaimWinner(winner);
 	}
 
-	function calculatePrice(uint256 _ticketAmount) public view returns (uint256) {
+	/* @params _ticketAmount quantity of ticket  */
+	/* @notice calculate the price of an amount of tickets (price is on DAI)   */
+	function calculatePrice(uint256 _ticketAmount) public pure returns (uint256) {
 		return _ticketAmount * PRICE;
 	}
 
+	/* @notice supply compound with dai to get incommings */
 	function invest()
 		external
 		endBuyTime(incompleteLottery)
@@ -241,6 +280,8 @@ contract Lottery is AccessControl {
 		return investedBalance;
 	}
 
+	/* @params _lotteryId lottery identifier */
+	/* @notice reclame you reward */
 	function reclameYouPrime(uint256 _lotteryId)
 		external
 		endBuyTime(incompleteLottery)
@@ -273,6 +314,9 @@ contract Lottery is AccessControl {
 		emit ClaimPrize(msg.sender, prize, isWinner);
 	}
 
+	/* @params _lotteryId lottery identifier */
+	/* @params _buyId buy reference */
+	/* @notice return the interval of tickets on exact lottery and time */
 	function balanceOf(uint256 _lotteryId, uint32 _buyId)
 		external
 		view
