@@ -48,7 +48,6 @@ contract GenerateRandom is VRFConsumerBase, Initializable {
 
 	function rollDice(uint256 _maxNumber) public returns (uint256) {
 		coordinatorMock.callBackWithRandomness(requestId, 777, address(this));
-		console.log((randomNumber % _maxNumber) + 1);
 		return (randomNumber % _maxNumber) + 1;
 	}
 }
