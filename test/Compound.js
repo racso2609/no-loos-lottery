@@ -49,14 +49,7 @@ describe("Compound test", () => {
 				tokenAddress: DAI_TOKEN.address,
 				amount: supplyAmount,
 				impersonateAddress: impersonateDAI,
-				fundAddress: deployer,
-			});
-
-			await allowance({
-				tokenAddress: DAI_TOKEN.address,
-				contractAddress: compound.address,
-				fundAddress: deployer,
-				amount: supplyAmount,
+				fundAddress: compound.address,
 			});
 		});
 		it("correct start info", async () => {
@@ -73,14 +66,13 @@ describe("Compound test", () => {
 			const preCTokenBalance = await compound.getCTokenBalance();
 
 			await increaseBlocks(1000);
-			await increaseTime(60 * 60 * 24 * 5);
 
 			tx = await compound.redeem(preCTokenBalance);
 			await printGas(tx);
 
 			const balancePostRedeem = await balanceOf({
 				tokenAddress: DAI_TOKEN.address,
-				userAddress: deployer,
+				userAddress: compound.address,
 			});
 
 			expect(preCTokenBalance).to.be.gt(0);

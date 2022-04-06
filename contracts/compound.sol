@@ -86,6 +86,5 @@ contract Compound is Initializable, AccessControlUpgradeable {
 
 	function redeem(uint256 _tokenAmount) public onlyRole(DEFAULT_ADMIN_ROLE) {
 		require(cToken.redeem(_tokenAmount) == 0, "redeem fail");
-		token.transfer(msg.sender, token.balanceOf(address(this)));
 	}
 }
