@@ -54,36 +54,6 @@ contract Compound is Initializable, AccessControlUpgradeable {
 		return cToken.balanceOf(address(this));
 	}
 
-	/* @notice info related to the pool */
-	function getInfo()
-		public
-		onlyRole(DEFAULT_ADMIN_ROLE)
-		returns (uint256 exchangeRate, uint256 supplyRate)
-	{
-		exchangeRate = cToken.exchangeRateCurrent();
-		supplyRate = cToken.supplyRatePerBlock();
-	}
-
-	/* @notice info related to the pool */
-	function estimateBalanceOfUnderlying()
-		public
-		onlyRole(DEFAULT_ADMIN_ROLE)
-		returns (uint256)
-	{
-		uint256 cTokenBal = getCTokenBalance();
-		uint256 exchangeRate = cToken.exchangeRateCurrent();
-
-		return cTokenBal.sub(exchangeRate).div(10**(18 + decimals.sub(cDecimals)));
-	}
-
-	function balanceOfUnderlying()
-		public
-		onlyRole(DEFAULT_ADMIN_ROLE)
-		returns (uint256)
-	{
-		return cToken.balanceOfUnderlying(address(this));
-	}
-
 	function redeem(uint256 _tokenAmount) public onlyRole(DEFAULT_ADMIN_ROLE) {
 		require(cToken.redeem(_tokenAmount) == 0, "redeem fail");
 	}

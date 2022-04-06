@@ -7,8 +7,6 @@ import "./compound.sol";
 
 import "./GenerateRandom.sol";
 
-/* import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol"; */
-
 contract Lottery is Compound {
 	using SafeMath for uint256;
 	Ticket public lotteryTickets;

@@ -3,6 +3,7 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorMock.sol";
+import "hardhat/console.sol";
 
 interface IGenerateRandom {
 	function getRandomness() external returns (bytes32);
@@ -46,9 +47,8 @@ contract GenerateRandom is VRFConsumerBase, Initializable {
 	}
 
 	function rollDice(uint256 _maxNumber) public returns (uint256) {
-		require(randomNumber >= 0, "Random number has not yet been obtained");
 		coordinatorMock.callBackWithRandomness(requestId, 777, address(this));
-
+		console.log((randomNumber % _maxNumber) + 1);
 		return (randomNumber % _maxNumber) + 1;
 	}
 }
