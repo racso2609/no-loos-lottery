@@ -43,7 +43,8 @@ describe("Compound test", () => {
 	});
 	describe("defi investement", () => {
 		beforeEach(async () => {
-			supplyAmount = "1000000";
+			supplyAmount = ethers.utils.parseEther("3000");
+
 			await impersonateTokens({
 				tokenAddress: DAI_TOKEN.address,
 				amount: supplyAmount,
@@ -66,51 +67,24 @@ describe("Compound test", () => {
 		});
 
 		it("supply and redeem", async () => {
-			console.log(
-				"before",
-				await balanceOf({
-					tokenAddress: DAI_TOKEN.address,
-					userAddress: deployer,
-				})
-			);
-			console.log(
-				"before cDai",
-				await balanceOf({
-					tokenAddress: CDAI_TOKEN.address,
-					userAddress: deployer,
-				})
-			);
 			let tx = await compound.supply(supplyAmount);
 			await printGas(tx);
-			console.log(
-				"after",
-				await balanceOf({
-					tokenAddress: DAI_TOKEN.address,
-					userAddress: deployer,
-				})
-			);
-			console.log(
-				"after cdai",
-				await balanceOf({
-					tokenAddress: CDAI_TOKEN.address,
-					userAddress: compound.address,
-				})
-			);
 
 			const preCTokenBalance = await compound.getCTokenBalance();
-			console.log(preCTokenBalance.toString()); //return 0 -_- whyyyy
 
-			await increaseBlocks(100);
-			const postCTokenBalance = await compound.getCTokenBalance();
-			console.log(postCTokenBalance.toString());
+			await increaseBlocks(1000);
+			await increaseTime(60 * 60 * 24 * 5);
 
-			tx = await compound.redeem(supplyAmount);
-			printGas(tx);
-			const balancePostRedeem = await compound.getCTokenBalance();
+			tx = await compound.redeem(preCTokenBalance);
+			await printGas(tx);
 
-			expect(preCTokenBalance).to.be.eq(supplyAmount);
-			expect(postCTokenBalance).to.be.gt(preCTokenBalance);
-			expect(postCTokenBalance.sub(supplyAmount)).to.be.eq(balancePostRedeem);
+			const balancePostRedeem = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: deployer,
+			});
+
+			expect(preCTokenBalance).to.be.gt(0);
+			expect(balancePostRedeem).to.be.gt(supplyAmount);
 		});
 	});
 });

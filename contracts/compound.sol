@@ -2,11 +2,11 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./interfaces/Compound.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 
-import "hardhat/console.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-contract Compound is AccessControl {
+contract Compound is Initializable, AccessControlUpgradeable {
 	using SafeMath for uint256;
 	using SafeMath for uint16;
 	IERC20 public token;
@@ -14,12 +14,13 @@ contract Compound is AccessControl {
 	uint16 public decimals;
 	uint16 public cDecimals;
 
-	constructor(
+	function __initializeCompound__(
 		address _token,
 		address _cToken,
 		uint16 _decimals,
 		uint16 _cDecimals
-	) {
+	) public initializer {
+		__AccessControl_init();
 		token = IERC20(_token);
 		cToken = CErc20(_cToken);
 		decimals = _decimals;
@@ -30,15 +31,14 @@ contract Compound is AccessControl {
 	/* @params _to person to grant admin role  */
 	/* @notice admin user can set admin privileges to another users */
 
-	function setAdmin(address _to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+	function setAdmin(address _to) public onlyRole(DEFAULT_ADMIN_ROLE) {
 		_grantRole(DEFAULT_ADMIN_ROLE, _to);
 	}
 
 	/* @params _amount amount of tokens to supplt compound  */
 	/* @notice supply compound with tokens */
 
-	function supply(uint256 _amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-		token.transferFrom(msg.sender, address(this), _amount);
+	function supply(uint256 _amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
 		token.approve(address(cToken), _amount);
 		require(cToken.mint(_amount) == 0, "mint fail!");
 	}
@@ -56,7 +56,7 @@ contract Compound is AccessControl {
 
 	/* @notice info related to the pool */
 	function getInfo()
-		external
+		public
 		onlyRole(DEFAULT_ADMIN_ROLE)
 		returns (uint256 exchangeRate, uint256 supplyRate)
 	{
@@ -66,26 +66,26 @@ contract Compound is AccessControl {
 
 	/* @notice info related to the pool */
 	function estimateBalanceOfUnderlying()
-		external
+		public
 		onlyRole(DEFAULT_ADMIN_ROLE)
 		returns (uint256)
 	{
 		uint256 cTokenBal = getCTokenBalance();
 		uint256 exchangeRate = cToken.exchangeRateCurrent();
-		console.log(cTokenBal, exchangeRate);
 
 		return cTokenBal.sub(exchangeRate).div(10**(18 + decimals.sub(cDecimals)));
 	}
 
 	function balanceOfUnderlying()
-		external
+		public
 		onlyRole(DEFAULT_ADMIN_ROLE)
 		returns (uint256)
 	{
 		return cToken.balanceOfUnderlying(address(this));
 	}
 
-	function redeem(uint256 _cTokenAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-		require(cToken.redeem(_cTokenAmount) == 0, "redeem fail");
+	function redeem(uint256 _tokenAmount) public onlyRole(DEFAULT_ADMIN_ROLE) {
+		require(cToken.redeem(_tokenAmount) == 0, "redeem fail");
+		token.transfer(msg.sender, token.balanceOf(address(this)));
 	}
 }

@@ -27,7 +27,8 @@ describe("Generate random number", () => {
 
 	it("get randomness", async () => {
 		const tx = await randomGenerator.getRandomness();
-		printGas(tx);
+		await printGas(tx);
+		console.log("random number", await randomGenerator.randomNumber());
 		expect(randomGenerator.requestId).exist;
 	});
 });

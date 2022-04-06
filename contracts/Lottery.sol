@@ -6,12 +6,10 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./compound.sol";
 
 import "./GenerateRandom.sol";
-import "hardhat/console.sol";
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+/* import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol"; */
 
-contract Lottery is Initializable, AccessControlUpgradeable {
+contract Lottery is Compound {
 	using SafeMath for uint256;
 	Ticket public lotteryTickets;
 	uint256 public actualLottery;
@@ -19,9 +17,8 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 
 	IUniswapV2Router02 public uniSwapRouter;
 	IGenerateRandom randomGenerator;
-	Compound compound;
 
-	event ClaimReward(address owner, uint256 prize, bool isWinner);
+	event ClaimReward(address owner, bool isWinner);
 	event ClaimWinner(address winner);
 	event BuyTicket(address owner, uint256 ticketAmount);
 
@@ -30,7 +27,7 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 	address constant DAI_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 	uint16 constant DEADLINE = 2 minutes;
 
-	uint256 constant PRICE = 1;
+	uint256 constant PRICE = 1 * 10**18;
 
 	struct ticketsInterval {
 		uint256 minNumber;
@@ -63,7 +60,7 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 	modifier endBuyTime(uint256 _lotteryId) {
 		require(
 			block.timestamp >= lotteries[_lotteryId].startTime + BUY_TIME,
-			"This sell is on voting time!"
+			"This sell is on buy time!"
 		);
 		_;
 	}
@@ -105,15 +102,15 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 		Ticket _lotteryTickets,
 		IUniswapV2Router02 _uniSwapRouter,
 		IGenerateRandom _randomNumber,
-		Compound _compound
+		address _token,
+		address _cToken,
+		uint16 _decimals,
+		uint16 _cDecimals
 	) external initializer {
-		__AccessControl_init();
+		__initializeCompound__(_token, _cToken, _decimals, _cDecimals);
 		lotteryTickets = _lotteryTickets;
 		uniSwapRouter = _uniSwapRouter;
 		randomGenerator = _randomNumber;
-		compound = _compound;
-
-		_grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 	}
 
 	/* @params _daiAmount dai received from the user  */
@@ -177,12 +174,10 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 			? _amount
 			: _getAmountsOut(path, _amount);
 
-		lotteries[actualLottery].balance[msg.sender] += amountOfTickets;
-
 		amountOfTickets = _calculateTokens(amountOfTickets);
-
 		require(amountOfTickets > 0, "invalid token amount");
 
+		lotteries[actualLottery].balance[msg.sender] += amountOfTickets;
 		_token.transferFrom(msg.sender, address(this), _amount);
 
 		if (address(_token) != DAI_ADDRESS) {
@@ -234,8 +229,8 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 		require(winner != address(0x0), "winner not found!");
 		lotteries[incompleteLottery].winner = winner;
 
-		uint256 amountToWithdraw = compound.getCTokenBalance();
-		compound.redeem(amountToWithdraw);
+		uint256 amountToWithdraw = getCTokenBalance();
+		redeem(amountToWithdraw);
 
 		lotteries[incompleteLottery].isComplete = true;
 		lotteries[incompleteLottery].ticketWinner = randomNumber;
@@ -272,8 +267,8 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 			lotteries[incompleteLottery].ticketsNumber
 		);
 
-		IERC20(DAI_ADDRESS).approve(address(compound), investedBalance);
-		compound.supply(investedBalance);
+		IERC20(DAI_ADDRESS).approve(address(this), investedBalance);
+		supply(investedBalance);
 
 		return investedBalance;
 	}
@@ -282,9 +277,9 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 	/* @notice reclame your reward */
 	function reclameReward(uint256 _lotteryId)
 		external
-		endBuyTime(incompleteLottery)
-		endInvestementTime(incompleteLottery)
-		isFinishedLottery(incompleteLottery)
+		endBuyTime(_lotteryId)
+		endInvestementTime(_lotteryId)
+		isFinishedLottery(_lotteryId)
 	{
 		require(
 			!lotteries[_lotteryId].isClaimed[msg.sender],
@@ -293,6 +288,7 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 
 		uint256 userTickets = lotteries[_lotteryId].balance[msg.sender];
 		bool isWinner = msg.sender == lotteries[_lotteryId].winner;
+
 		uint256 prize;
 		if (isWinner) {
 			prize = calculatePrice( //no refundable amount
@@ -303,23 +299,30 @@ contract Lottery is Initializable, AccessControlUpgradeable {
 			uint256 DaiContractBalance = IERC20(DAI_ADDRESS).balanceOf(address(this));
 			prize = DaiContractBalance.sub(prize);
 		} else {
-			prize = userTickets;
+			prize = calculatePrice(userTickets);
 		}
 
 		IERC20(DAI_ADDRESS).transfer(msg.sender, prize);
 		lotteries[_lotteryId].isClaimed[msg.sender] = true;
 		lotteries[_lotteryId].claimedTickets += calculatePrice(userTickets);
-		emit ClaimReward(msg.sender, prize, isWinner);
+		emit ClaimReward(msg.sender, isWinner);
 	}
 
 	/* @params _lotteryId lottery identifier */
 	/* @params _buyId buy reference */
 	/* @notice return the interval of tickets on exact lottery and time */
-	function balanceOf(uint256 _lotteryId, uint32 _buyId)
+	function ticketsOf(uint256 _lotteryId, uint32 _buyId)
 		external
 		view
 		returns (ticketsInterval memory)
 	{
 		return lotteries[_lotteryId].ticketsOwner[_buyId];
+	}
+
+	/* @params _lotteryId lottery identifier */
+	/* @params _buyId buy reference */
+	/* @notice return the interval of tickets on exact lottery and time */
+	function balanceOf(uint256 _lotteryId) external view returns (uint256) {
+		return lotteries[_lotteryId].balance[msg.sender];
 	}
 }
