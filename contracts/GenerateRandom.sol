@@ -39,6 +39,7 @@ contract GenerateRandom is VRFConsumerBase, Initializable {
 			"Inadequate Link to fund this transaction"
 		);
 		requestId = requestRandomness(keyHash, fee);
+		coordinatorMock.callBackWithRandomness(requestId, 777, address(this));
 		return requestId;
 	}
 
@@ -46,8 +47,7 @@ contract GenerateRandom is VRFConsumerBase, Initializable {
 		randomNumber = randomness;
 	}
 
-	function rollDice(uint256 _maxNumber) public returns (uint256) {
-		coordinatorMock.callBackWithRandomness(requestId, 777, address(this));
+	function rollDice(uint256 _maxNumber) public view returns (uint256) {
 		return (randomNumber % _maxNumber) + 1;
 	}
 }
