@@ -27,7 +27,6 @@ describe("Generate random number", () => {
 		});
 		const tx = await randomGenerator.getRandomness();
 		await printGas(tx);
-		console.log("random number", await randomGenerator.randomNumber());
 		expect(randomGenerator.requestId).exist;
 	});
 	it("fail not link", async () => {
@@ -44,13 +43,14 @@ describe("Generate random number", () => {
 		await printGas(tx);
 		await increaseTime(60 * 60 * 30);
 
-		tx = await randomGenerator.rollDice(3);
-		await printGas(tx);
+		const randomNumber = await randomGenerator.rollDice(3);
+
+		// console.log("random number", randomNumber);
 		// console.log(tx);
 		// const recipient = await ethers.provider.getTransactionReceipt(tx.hash);
 
 		// console.log(recipient);
-		// expect(tx.value).gt(0);
-		expect(tx.value).lt(3);
+		expect(randomNumber).gt(0);
+		expect(randomNumber).lt(3);
 	});
 });
