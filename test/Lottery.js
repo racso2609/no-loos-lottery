@@ -327,7 +327,12 @@ describe("Lottery", () => {
 			expect(daiBalance).to.be.gt(0);
 		});
 
-		it("fail already claimed", () => {});
+		it("fail already claimed", async () => {
+			let tx = await lottery.reclameReward(0);
+			await printGas(tx);
+
+			await expect(lottery.reclameReward(0)).to.be.reverted;
+		});
 		it("claim reward event", async () => {
 			await expect(lottery.reclameReward(0))
 				.to.emit(lottery, "ClaimReward")
