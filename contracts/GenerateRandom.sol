@@ -1,3 +1,4 @@
+//SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 
@@ -15,12 +16,12 @@ contract Mock is VRFCoordinatorMock {
 	constructor(address _link) VRFCoordinatorMock(_link) {}
 }
 
-contract GenerateRandom is VRFConsumerBase, Initializable {
+contract GenerateRandom is VRFConsumerBase {
 	bytes32 internal keyHash;
 	uint256 internal fee;
 	uint256 public randomNumber;
 	bytes32 public requestId;
-	Mock coordinatorMock;
+	address vrfCoordinator;
 
 	constructor(
 		address _vrfCoordinator,
@@ -30,7 +31,7 @@ contract GenerateRandom is VRFConsumerBase, Initializable {
 	) VRFConsumerBase(_vrfCoordinator, _link) {
 		keyHash = _keyHash;
 		fee = _fee;
-		coordinatorMock = new Mock(_link);
+		vrfCoordinator = _vrfCoordinator;
 	}
 
 	function getRandomness() public returns (bytes32) {
@@ -39,11 +40,19 @@ contract GenerateRandom is VRFConsumerBase, Initializable {
 			"Inadequate Link to fund this transaction"
 		);
 		requestId = requestRandomness(keyHash, fee);
-		coordinatorMock.callBackWithRandomness(requestId, 777, address(this));
+		VRFCoordinatorMock(vrfCoordinator).callBackWithRandomness(
+			requestId,
+			777,
+			address(this)
+		);
 		return requestId;
 	}
 
-	function fulfillRandomness(bytes32, uint256 randomness) internal override {
+	function fulfillRandomness(bytes32, uint256 randomness)
+		internal
+		virtual
+		override
+	{
 		randomNumber = randomness;
 	}
 

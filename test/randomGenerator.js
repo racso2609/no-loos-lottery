@@ -5,6 +5,7 @@ const { getToken, impersonateTokens, transfer } = require("../utils/tokens");
 
 describe("Generate random number", () => {
 	beforeEach(async () => {
+		({ deployer, user } = await getNamedAccounts());
 		await fixture(["GenerateRandom"]);
 		randomGenerator = await ethers.getContract("GenerateRandom");
 
@@ -44,8 +45,8 @@ describe("Generate random number", () => {
 		await increaseTime(60 * 60 * 30);
 
 		const randomNumber = await randomGenerator.rollDice(3);
+		// console.log(await randomGenerator.randomNumber());
 
-		// console.log("random number", randomNumber);
 		// console.log(tx);
 		// const recipient = await ethers.provider.getTransactionReceipt(tx.hash);
 

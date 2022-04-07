@@ -87,7 +87,27 @@ describe("Lottery", () => {
 				amount: total.mul(2).div(1 * 10 ** 10),
 			});
 		});
-		it("lottery swap", async () => {
+		it("lottery with eth", async () => {
+			const tx = await lottery.buyTicketETH({ value: total });
+			await printGas(tx);
+			const postDaiBalance = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: lottery.address,
+			});
+
+			expect(postDaiBalance).to.be.gt(0);
+		});
+		it("refund money eth", async () => {
+			const tx = await lottery.buyTicketETH({ value: total });
+			await printGas(tx);
+			const postDaiBalance = await balanceOf({
+				tokenAddress: DAI_TOKEN.address,
+				userAddress: deployer,
+			});
+
+			expect(postDaiBalance).to.be.gte("720383491886000861");
+		});
+		it("buy lottery with crypto difference to DAI", async () => {
 			const preDaiBalance = await balanceOf({
 				tokenAddress: DAI_TOKEN.address,
 				userAddress: lottery.address,
@@ -105,6 +125,19 @@ describe("Lottery", () => {
 			});
 
 			expect(postDaiBalance).to.be.gt(preDaiBalance);
+		});
+		it("refund money with cryptos", async () => {
+			const tx = await lottery.buyTicketWithToken(
+				USDC_TOKEN.address,
+				total.mul(2).div(1 * 10 ** 10)
+			);
+			await printGas(tx);
+			const postDaiBalance = await balanceOf({
+				tokenAddress: USDC_TOKEN.address,
+				userAddress: deployer,
+			});
+
+			expect(postDaiBalance).to.be.gte(0);
 		});
 		it("pass 2 days storage on next lottery but doesnt start", async () => {
 			let tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, total);
@@ -205,7 +238,7 @@ describe("Lottery", () => {
 			const actualLottery = await lottery.lotteries(0);
 			expect(actualLottery.winner).to.be.eq(deployer);
 			expect(actualLottery.isComplete);
-			expect(actualLottery.ticketWinner).to.be.eq(1);
+			expect(actualLottery.ticketWinner).to.be.eq(8);
 		});
 		it(" claim winner event", async () => {
 			let tx = await lottery.buyTicketWithToken(DAI_TOKEN.address, total);

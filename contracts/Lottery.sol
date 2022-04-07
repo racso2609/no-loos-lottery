@@ -23,6 +23,7 @@ contract Lottery is Compound {
 	uint256 constant BUY_TIME = 2 days;
 	uint256 constant INVERSION_TIME = 5 days;
 	address constant DAI_ADDRESS = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+	address public constant WETH9 = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 	uint16 constant DEADLINE = 2 minutes;
 
 	uint256 constant PRICE = 1 * 10**18;
@@ -92,7 +93,6 @@ contract Lottery is Compound {
 			actualLottery++;
 			lotteries[actualLottery].lotteryId = actualLottery;
 		}
-
 		_;
 	}
 
@@ -116,10 +116,18 @@ contract Lottery is Compound {
 
 	function _calculateTokens(uint256 _daiAmount)
 		internal
-		view
+		pure
 		returns (uint256)
 	{
-		return _daiAmount / PRICE;
+		return _daiAmount.div(PRICE);
+	}
+
+	function _calculateRefund(uint256 _daiAmount)
+		internal
+		pure
+		returns (uint256)
+	{
+		return _daiAmount.mod(PRICE);
 	}
 
 	/* @params _tokens uniswap path  */
@@ -152,36 +160,28 @@ contract Lottery is Compound {
 		);
 	}
 
+	function _swapETH(
+		uint256 _amount,
+		address[] memory _path,
+		uint256 _tokensAmount
+	) internal {
+		uniSwapRouter.swapExactETHForTokens{ value: _amount }(
+			_tokensAmount,
+			_path,
+			address(this),
+			block.timestamp + DEADLINE
+		);
+	}
+
 	function getRandomNumber() external {
 		randomGenerator.getRandomness();
 	}
 
-	/* @params _token tokenIn  */
-	/* @params _amount quantity of tokens sent  */
-	/* @notice buy tickets, and swap the tokenIn for dai   */
+	/* @params amountOfTickets quantity of lottery tickets bought */
+	/* @notice update all lottery information  */
 
-	function buyTicketWithToken(IERC20 _token, uint256 _amount)
-		external
-		manageLotteryInfo
-	{
-		address[] memory path = new address[](2);
-		path[0] = address(_token);
-		path[1] = DAI_ADDRESS;
-
-		uint256 amountOfTickets = address(_token) == DAI_ADDRESS
-			? _amount
-			: _getAmountsOut(path, _amount);
-
-		amountOfTickets = _calculateTokens(amountOfTickets);
-		require(amountOfTickets > 0, "invalid token amount");
-
+	function _buyTicket(uint256 amountOfTickets) internal {
 		lotteries[actualLottery].balance[msg.sender] += amountOfTickets;
-		_token.transferFrom(msg.sender, address(this), _amount);
-
-		if (address(_token) != DAI_ADDRESS) {
-			_token.approve(address(uniSwapRouter), _amount);
-			_swap(_amount, path, amountOfTickets);
-		}
 
 		lotteryTickets.mint(actualLottery, amountOfTickets, msg.sender);
 
@@ -199,6 +199,57 @@ contract Lottery is Compound {
 		emit BuyTicket(msg.sender, amountOfTickets);
 	}
 
+	/* @params _token tokenIn  */
+	/* @params _amount quantity of tokens sent  */
+	/* @notice buy tickets with eth   */
+
+	function buyTicketETH() external payable manageLotteryInfo {
+		address[] memory path = new address[](2);
+		path[0] = uniSwapRouter.WETH();
+		path[1] = DAI_ADDRESS;
+
+		uint256 daiAmount = _getAmountsOut(path, msg.value);
+		uint256 amountOfTickets = _calculateTokens(daiAmount);
+		uint256 moneyToRefund = _calculateRefund(daiAmount);
+		require(amountOfTickets > 0, "invalid token amount");
+
+		_swapETH(msg.value, path, daiAmount);
+
+		IERC20(DAI_ADDRESS).transfer(msg.sender, moneyToRefund);
+		_buyTicket(amountOfTickets);
+	}
+
+	/* @params _token tokenIn  */
+	/* @params _amount quantity of tokens sent  */
+	/* @notice buy tickets, and swap the tokenIn for dai   */
+
+	function buyTicketWithToken(IERC20 _token, uint256 _amount)
+		external
+		manageLotteryInfo
+	{
+		address[] memory path = new address[](2);
+		path[0] = address(_token);
+		path[1] = DAI_ADDRESS;
+
+		uint256 daiAmount = address(_token) == DAI_ADDRESS
+			? _amount
+			: _getAmountsOut(path, _amount);
+
+		uint256 moneyToRefund = _calculateRefund(daiAmount);
+		uint256 amountOfTickets = _calculateTokens(daiAmount);
+
+		require(amountOfTickets > 0, "invalid token amount");
+
+		_token.transferFrom(msg.sender, address(this), _amount);
+
+		if (address(_token) != DAI_ADDRESS) {
+			_token.approve(address(uniSwapRouter), _amount);
+			_swap(_amount, path, amountOfTickets);
+			IERC20(DAI_ADDRESS).transfer(msg.sender, moneyToRefund);
+		}
+		_buyTicket(amountOfTickets);
+	}
+
 	/* @notice claim winner from a complete loterry  */
 
 	function claimWinner()
@@ -212,11 +263,12 @@ contract Lottery is Compound {
 		);
 
 		uint32 buyQuantity = lotteries[incompleteLottery].buyId;
+
 		address winner;
 		for (uint32 i = 0; i < buyQuantity; i++) {
 			if (
-				lotteries[incompleteLottery].ticketsOwner[i].minNumber >=
-				randomNumber &&
+				randomNumber >=
+				lotteries[incompleteLottery].ticketsOwner[i].minNumber &&
 				randomNumber <= lotteries[incompleteLottery].ticketsOwner[i].maxNumber
 			) {
 				winner = lotteries[incompleteLottery].ticketsOwner[i].owner;
